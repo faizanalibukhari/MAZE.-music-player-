@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SOLID.STRM | Functional Search</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #ffffff; --text: #000000; --accent: #1DB954;
+            --border: #000000; --card: #ffffff; --heart: #ff4d4d;
+        }
+        [data-theme="dark"] {
+            --bg: #000000; --text: #ffffff; --accent: #1DB954;
+            --border: #ffffff; --card: #000000;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Space Grotesk', sans-serif; }
+        body { background-color: var(--bg); color: var(--text); display: flex; height: 100vh; overflow: hidden; transition: 0.3s; }
+
+        /* --- Sidebar (Desktop) --- */
+        .sidebar { width: 250px; border-right: 4px solid var(--border); padding: 2rem; display: flex; flex-direction: column; gap: 8px; }
+        .nav-btn { background: none; border: 2px solid transparent; color: var(--text); padding: 12px; text-align: left; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 10px; }
+        .nav-btn.active { background: var(--text); color: var(--bg); border-color: var(--border); }
+
+        /* --- Mobile Nav (4 Options) --- */
+        .mobile-nav { display: none; position: fixed; bottom: 0; width: 100%; background: var(--bg); border-top: 4px solid var(--border); justify-content: space-around; height: 70px; z-index: 1000; align-items: center; }
+        .m-nav-item { display: flex; flex-direction: column; align-items: center; cursor: pointer; opacity: 0.4; }
+        .m-nav-item.active { opacity: 1; }
+        .m-nav-item svg { width: 24px; height: 24px; fill: currentColor; }
+        .m-nav-item span { font-size: 10px; font-weight: 800; margin-top: 4px; }
+
+        /* --- Views Area --- */
+        main { flex-grow: 1; padding: 2rem; overflow-y: auto; }
+        .view { display: none; }
+        .view.active { display: block; animation: slideUp 0.3s ease-out; }
+        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        /* --- Search Bar Style --- */
+        .search-wrapper { position: sticky; top: 0; background: var(--bg); padding-bottom: 1rem; z-index: 10; }
+        .search-input { width: 100%; padding: 1.5rem; border: 4px solid var(--border); background: var(--card); color: var(--text); font-size: 1.2rem; font-weight: 800; outline: none; }
+
+        /* --- List UI --- */
+        .track-item { display: grid; grid-template-columns: 40px 1fr 1fr 50px; padding: 1.2rem; border: 3px solid var(--border); margin-bottom: 12px; background: var(--card); cursor: pointer; align-items: center; }
+        .track-item:hover { transform: translate(-4px, -4px); box-shadow: 8px 8px 0 var(--border); }
+        .liked-heart { color: var(--heart); }
+
+        /* --- Player (Right Side) --- */
+        .player { width: 360px; border-left: 4px solid var(--border); padding: 2rem; display: flex; flex-direction: column; gap: 1.5rem; }
+        .cover { width: 100%; aspect-ratio: 1; border: 4px solid var(--border); background-size: cover; background-position: center; }
+        .prog { width: 100%; height: 12px; border: 2px solid var(--border); background: #eee; cursor: pointer; }
+        .prog-fill { height: 100%; background: var(--accent); width: 0%; }
+        .btn-p { padding: 15px; border: 3px solid var(--border); background: var(--text); color: var(--bg); font-weight: 900; cursor: pointer; }
+
+        @media (max-width: 900px) {
+            body { flex-direction: column; }
+            .sidebar { display: none; }
+            .mobile-nav { display: flex; }
+            .player { width: 100%; border-left: none; border-top: 4px solid var(--border); height: auto; padding: 1rem; }
+            main { height: calc(100vh - 420px); padding-bottom: 80px; }
+            .track-item { grid-template-columns: 30px 1fr 40px; }
+            .track-item span:nth-child(3) { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+<nav class="sidebar">
+    <div class="logo">MAZE.</div>
+    <button class="nav-btn active" onclick="navTo('home')">HOME</button>
+    <button class="nav-btn" onclick="navTo('search')">SEARCH</button>
+    <button class="nav-btn" onclick="navTo('liked')">LIKED</button>
+    <button class="nav-btn" onclick="navTo('profile')">PROFILE</button>
+    <button class="nav-btn" style="margin-top: auto; border: 2px solid var(--border);" onclick="toggleTheme()">INVERT THEME</button>
+</nav>
+
+<div class="mobile-nav">
+    <div class="m-nav-item active" id="m-home" onclick="navTo('home')">
+        <svg viewBox="0 0 24 24"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg><span>HOME</span>
+    </div>
+    <div class="m-nav-item" id="m-search" onclick="navTo('search')">
+        <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg><span>SEARCH</span>
+    </div>
+    <div class="m-nav-item" id="m-liked" onclick="navTo('liked')">
+        <svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg><span>LIKES</span>
+    </div>
+    <div class="m-nav-item" id="m-profile" onclick="navTo('profile')">
+        <svg viewBox="0 0 24 24"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg><span>PROFILE</span>
+    </div>
+</div>
+
+<main>
+    <section id="home" class="view active">
+        <h1 style="font-size: 3rem; margin-bottom: 2rem;">FOR YOU</h1>
+        <div id="home-list"></div>
+    </section>
+
+    <section id="search" class="view">
+        <div class="search-wrapper">
+            <input type="text" class="search-input" id="search-bar" placeholder="SEARCH FOR SONGS..." oninput="filterSearch()">
+        </div>
+        <div id="search-results"></div>
+    </section>
+
+    <section id="liked" class="view">
+        <h1 style="font-size: 3rem;">LIKED</h1>
+        <div id="liked-list" style="margin-top: 1rem;"></div>
+    </section>
+
+    <section id="profile" class="view">
+        <h1 style="font-size: 3rem;">PROFILE</h1>
+        <div style="margin-top: 2rem; border: 5px solid var(--border); padding: 2rem; background: var(--card);">
+            <h2>Arijit Singh Jr.</h2>
+            <p>SolidStream Pro User</p>
+        </div>
+    </section>
+</main>
+
+<div class="player">
+    <div class="cover" id="p-img"></div>
+    <div>
+        <h2 id="p-title">Select a Song</h2>
+        <p id="p-artist" style="opacity: 0.6;">Artist</p>
+    </div>
+    <div class="prog" id="p-box"><div class="prog-fill" id="p-fill"></div></div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+        <button class="btn-p" onclick="prev()">PRV</button>
+        <button class="btn-p" id="play-btn" onclick="toggle()">PLAY</button>
+        <button class="btn-p" onclick="next()">NXT</button>
+    </div>
+    <input type="range" id="vol" min="0" max="1" step="0.1" value="0.8" style="width: 100%; margin-top: 1rem; accent-color: var(--accent);">
+</div>
+
+<script>
+    const playlist = [
+        { t: "Midnight City", a: "M83", s: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3", c: "https://picsum.photos/seed/s1/400" },
+        { t: "Electric Feel", a: "MGMT", s: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3", c: "https://picsum.photos/seed/s2/400" },
+        { t: "Blinding Lights", a: "The Weeknd", s: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3", c: "https://picsum.photos/seed/s3/400" },
+        { t: "Starboy", a: "The Weeknd", s: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3", c: "https://picsum.photos/seed/s4/400" },
+        { t: "Levitating", a: "Dua Lipa", s: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3", c: "https://picsum.photos/seed/s5/400" },
+        { t: "Circles", a: "Post Malone", s: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3", c: "https://picsum.photos/seed/s6/400" },
+        { t: "Heat Waves", a: "Glass Animals", s: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-9.mp3", c: "https://picsum.photos/seed/s7/400" },
+        { t: "Shape of You", a: "Ed Sheeran", s: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-13.mp3", c: "https://picsum.photos/seed/s8/400" },
+        { t: "Bad Guy", a: "Billie Eilish", s: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-15.mp3", c: "https://picsum.photos/seed/s9/400" },
+        { t: "Perfect", a: "Ed Sheeran", s: "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-16.mp3", c: "https://picsum.photos/seed/s10/400" }
+    ];
+
+    let currIdx = 0; let playing = false; let liked = new Set();
+    const audio = new Audio();
+
+    function render(filter = '') {
+        const homeList = document.getElementById('home-list');
+        const likedList = document.getElementById('liked-list');
+        const searchList = document.getElementById('search-results');
+
+        homeList.innerHTML = ''; likedList.innerHTML = ''; searchList.innerHTML = '';
+
+        playlist.forEach((s, i) => {
+            const isL = liked.has(i);
+            const html = `<div class="track-item">
+                <span onclick="playSong(${i})">${i+1}</span>
+                <span onclick="playSong(${i})">${s.t}</span>
+                <span onclick="playSong(${i})">${s.a}</span>
+                <span class="like-btn ${isL?'liked-heart':''}" onclick="toggleLike(${i})">${isL?'♥':'♡'}</span>
+            </div>`;
+
+            // Home page logic
+            homeList.innerHTML += html;
+            
+            // Liked page logic
+            if(isL) likedList.innerHTML += html;
+
+            // Search logic
+            if(filter && (s.t.toLowerCase().includes(filter) || s.a.toLowerCase().includes(filter))) {
+                searchList.innerHTML += html;
+            }
+        });
+    }
+
+    function filterSearch() {
+        const val = document.getElementById('search-bar').value.toLowerCase();
+        render(val);
+    }
+
+    function navTo(id) {
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.innerText.toLowerCase() === id));
+        document.querySelectorAll('.m-nav-item').forEach(i => i.classList.remove('active'));
+        document.getElementById('m-'+id).classList.add('active');
+        
+        // Clear search if leaving search page
+        if(id !== 'search') { document.getElementById('search-bar').value = ''; render(); }
+    }
+
+    function playSong(i, start=true) {
+        currIdx = i; audio.src = playlist[i].s;
+        document.getElementById('p-title').innerText = playlist[i].t;
+        document.getElementById('p-artist').innerText = playlist[i].a;
+        document.getElementById('p-img').style.backgroundImage = `url(${playlist[i].c})`;
+        if(start) { audio.play(); playing = true; document.getElementById('play-btn').innerText = "PAUSE"; }
+    }
+
+    function toggle() {
+        if(playing) { audio.pause(); document.getElementById('play-btn').innerText = "PLAY"; }
+        else { audio.play(); document.getElementById('play-btn').innerText = "PAUSE"; }
+        playing = !playing;
+    }
+
+    function next() { playSong((currIdx + 1) % playlist.length); }
+    function prev() { playSong((currIdx - 1 + playlist.length) % playlist.length); }
+    function toggleLike(i) { if(liked.has(i)) liked.delete(i); else liked.add(i); render(); }
+
+    audio.ontimeupdate = () => { document.getElementById('p-fill').style.width = (audio.currentTime / audio.duration) * 100 + "%"; };
+    document.getElementById('p-box').onclick = (e) => audio.currentTime = (e.offsetX / e.currentTarget.clientWidth) * audio.duration;
+    document.getElementById('vol').oninput = (e) => audio.volume = e.target.value;
+    function toggleTheme() {
+        const h = document.documentElement;
+        h.setAttribute('data-theme', h.getAttribute('data-theme') === 'light' ? 'dark' : 'light');
+    }
+
+    render();
+    playSong(0, false);
+</script>
+</body>
+</html>
